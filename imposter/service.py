@@ -7,9 +7,13 @@ import netifaces
 from flask import Flask
 from gunicorn import config
 from gunicorn.app.base import Application
-
+import logging
 from imposter.routes import register_routes
 
+logging.config.fileConfig('{}/logging.ini'.format(os.path.dirname(os.path.realpath(__file__))))
+logger = logging.getLogger('imposter')
+
+# logger = Logger()
 app = Flask(__name__)
 # app.config['DEBUG'] = True
 
@@ -118,13 +122,14 @@ class FlaskApplication(Application):
                 cmd = ['ifconfig', 'lo0', 'alias', '169.254.169.254']
                 if os.getuid() != 0:
                     cmd = ['sudo'] + cmd
-                app.logger.info('Adding 169.254.169.254 alias to lo0')
+                logger.info('Adding 169.254.169.254 alias to lo0: {}'.format(' '.join(cmd)))
                 status = subprocess.Popen(' '.join(cmd), shell=True)
-                if status != 0:
-                    app.logger.error('Error calling {}'.format(' '.join(cmd)))
-                    sys.exit(1)
+                # if status.returncode != 0:
+                #     ogger.error('Error calling {}'.format(' '.join(cmd)))
+                #     sys.exit(1)
         if self.cfg.address[0][1] < 1024 and os.getuid() != 0:
             # restart this program as root
+            logger.info('Switching to root to run on a privileged port.')
             username = getpass.getuser()
             cmd = ['sudo', 'PYTHONPATH=.', sys.executable] + sys.argv + ['--user', username]
             proc = subprocess.Popen(' '.join(cmd), shell=True, cwd=os.getcwd())
