@@ -48,4 +48,4 @@ def register_routes(app):
 
     @app.route('/<path>')
     def basepath(path):
-        app.logger.debug(str(request))
+        return Response(content_type='text/plain', response='URI Path "/{}" not yet implemented\n'.format(path), status=200)

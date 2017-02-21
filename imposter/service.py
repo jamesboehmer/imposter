@@ -123,10 +123,15 @@ class FlaskApplication(Application):
                 if os.getuid() != 0:
                     cmd = ['sudo'] + cmd
                 logger.info('Adding 169.254.169.254 alias to lo0: {}'.format(' '.join(cmd)))
-                status = subprocess.Popen(' '.join(cmd), shell=True)
-                # if status.returncode != 0:
-                #     ogger.error('Error calling {}'.format(' '.join(cmd)))
-                #     sys.exit(1)
+                proc = subprocess.Popen(' '.join(cmd), shell=True)
+                while proc.returncode is None:
+                    try:
+                        proc.wait()
+                    except KeyboardInterrupt:
+                        pass
+                if proc.returncode != 0:
+                    logger.error('Error calling {}'.format(' '.join(cmd)))
+                    sys.exit(1)
         if self.cfg.address[0][1] < 1024 and os.getuid() != 0:
             # restart this program as root
             logger.info('Switching to root to run on a privileged port.')
