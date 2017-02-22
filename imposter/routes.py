@@ -7,18 +7,17 @@ from imposter.helpers import get_assumed_role
 
 
 def register_routes(app):
-    assumed_role = get_assumed_role(app.config)
-
     @app.route('/latest/meta-data/iam/')
     def latest_metadata_iam():
         return Response(content_type='text/plain', response='\n'.join(['info', 'security-credentials/']), status=200)
 
     @app.route('/latest/meta-data/iam/info/')
     def latest_metadata_iam_info():
+        assumed_role = get_assumed_role(app.config, app.config.get('AWS_PROFILE'))
         user = assumed_role.user
         profile = OrderedDict([
             ('Code', 'Success'),
-            ('LastUpdated', app.config.get('role_last_updated')),
+            ('LastUpdated', app.config.get('role_last_updated', {}).get(app.config.get('AWS_PROFILE'))),
             ('InstanceProfileArn', user.arn),
             ('InstanceProfileId', user.assume_role_id),
         ]
@@ -27,16 +26,16 @@ def register_routes(app):
 
     @app.route('/latest/meta-data/iam/security-credentials/')
     def latest_metadata_iam_securitycredentials():
-        app.logger.debug(str(request))
         return Response(content_type='text/plain', response=app.config.get('AWS_PROFILE'), status=200)
 
     @app.route('/latest/meta-data/iam/security-credentials/<alias>')
     def latest_metadata_iam_securitycredentials_alias(alias):
         app.logger.debug(str(request))
+        assumed_role = get_assumed_role(app.config, alias)
         credentials = assumed_role.credentials
         role = OrderedDict([
             ('Code', 'Success'),
-            ('LastUpdated', app.config.get('role_last_updated')),
+            ('LastUpdated', app.config.get('role_last_updated', {}).get(alias)),
             ('Type', 'AWS-HMAC'),
             ('AccessKeyId', credentials.access_key),
             ('SecretAccessKey', credentials.secret_key),
@@ -48,4 +47,5 @@ def register_routes(app):
 
     @app.route('/<path>')
     def basepath(path):
-        return Response(content_type='text/plain', response='URI Path "/{}" not yet implemented\n'.format(path), status=200)
+        return Response(content_type='text/plain', response='URI Path "/{}" not yet implemented\n'.format(path),
+                        status=200)
