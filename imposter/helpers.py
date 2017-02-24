@@ -17,6 +17,16 @@ ROLE_SESSION_NAME = 'imposter-sts-client'
 config_lock = BoundedSemaphore(1)
 
 
+def set_default_profile(config, profile):
+    try:
+        _config_lock = config.get('CONFIG_LOCK') or config_lock
+        _config_lock.acquire()
+        config['AWS_PROFILE'] = profile
+
+    finally:
+        _config_lock.release()
+
+
 def assume_identity(config, profile):
     # if AWS_PROFILE was the option last used, and it didn't require assuming a role
     if config.get('AWS_PROFILE_REFRESH_NOT_NEEDED'):
