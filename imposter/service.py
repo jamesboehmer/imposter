@@ -1,13 +1,13 @@
 from __future__ import print_function
+
 import getpass
 import logging
-import netifaces
 import os
 import subprocess
 import sys
 from hashlib import md5
-import requests
 
+import requests
 from flask import Flask
 from gunicorn import config
 from gunicorn.app.base import Application
@@ -205,8 +205,9 @@ class FlaskApplication(Application):
 
         # if 169.254.169.254 doesn't exist we should add it as an alias
         if self.cfg.address[0][0] == '169.254.169.254':
-            privip = [a.get('addr') for a in netifaces.ifaddresses('lo0')[netifaces.AF_INET]]
-            if '169.254.169.254' not in privip:
+            interfaces = subprocess.Popen('ifconfig lo0 inet', shell=True, stdout=subprocess.PIPE,
+                                          stderr=subprocess.PIPE).communicate()[0]
+            if '169.254.169.254' not in interfaces:
                 cmd = ['ifconfig', 'lo0', 'alias', '169.254.169.254']
                 if os.getuid() != 0:
                     cmd = ['sudo'] + cmd
