@@ -28,6 +28,21 @@ class FlaskApplication(Application):
         app.config['AWS_PROFILE'] = opts.profile
         if opts.awsconfig:
             app.config['AWS_CONFIG_FILE'] = opts.awsconfig
+
+        # preload all of the profiles
+        _ = get_assumed_role(app.config, opts.profile).credentials
+        shared_credentials = app.config['AWS_SHARED_CREDENTIALS']
+        _ = get_assumed_role(app.config, app.config.get('AWS_PROFILE')).credentials
+        profiles = [profile.replace('profile ', '') for profile in shared_credentials.sections() if
+                    profile.startswith('profile ') and shared_credentials.get(profile, 'source_profile')]
+
+        for profile in profiles:
+            try:
+                logger.debug("Loading profile: {}".format(profile))
+                _ = get_assumed_role(app.config, profile).credentials
+            except Exception as e:
+                logger.error("Couldn't assume role {}: {}".format(profile, str(e)))
+
         return {}
 
     def load_config(self):
@@ -144,13 +159,18 @@ class FlaskApplication(Application):
         parser = self.cfg.parser()
 
         args = parser.parse_args()
+        # redo the pid file in case there was a different bind arg
+        tmpdir = '/tmp'  # tempfile.gettempdir()
+        address = '{}'.format(args.bind[0] if args.bind else self.cfg.settings['bind'].value[0])
+        pidfile = '{}/imposter.{}'.format(tmpdir, md5(address).hexdigest())
+        self.cfg.settings['pidfile'].value = pidfile
         if args.status:
             try:
-                logger.debug("Reading from {}".format(pidfile))
                 url = 'http://{}:{}/status'.format(self.cfg.address[0][0], self.cfg.address[0][1], args.profile)
+                logger.debug("Querying {}".format(url))
                 r = requests.get(url)
                 print(str(r.content))
-            except Exception as e:
+            except Exception as _:
                 print('Imposter service not reachable: {}'.format(url))
                 sys.exit(1)
             sys.exit(0)

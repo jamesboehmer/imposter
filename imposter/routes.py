@@ -48,10 +48,8 @@ def register_routes(app):
 
     @app.route('/roles')
     def roles():
-        # get credentials at least once to ensure the config was loaded
-        _ = get_assumed_role(app.config, app.config.get('AWS_PROFILE')).credentials
         roles = [profile.replace('profile ', '') for profile in app.config['AWS_SHARED_CREDENTIALS'].sections() if
-                 profile.startswith('profile ')]
+                 profile.startswith('profile ') and app.config['AWS_SHARED_CREDENTIALS'].get(profile, 'source_profile')]
         roles.sort()
         return jsonify(roles=roles)
 
