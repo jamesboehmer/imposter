@@ -150,7 +150,7 @@ class FlaskApplication(Application):
 
         tmpdir = '/tmp'  # tempfile.gettempdir()
         address = '{}:{}'.format(*self.cfg.address[0])
-        pidfile = '{}/imposter.{}'.format(tmpdir, md5(address).hexdigest())
+        pidfile = '{}/imposter.{}'.format(tmpdir, md5(address.encode('utf-8')).hexdigest())
 
         logger.debug("pidfile: {}".format(pidfile))
 
@@ -163,7 +163,7 @@ class FlaskApplication(Application):
         # redo the pid file in case there was a different bind arg
         tmpdir = '/tmp'  # tempfile.gettempdir()
         address = '{}'.format(args.bind[0] if args.bind else self.cfg.settings['bind'].value[0])
-        pidfile = '{}/imposter.{}'.format(tmpdir, md5(address).hexdigest())
+        pidfile = '{}/imposter.{}'.format(tmpdir, md5(address.encode('utf-8')).hexdigest())
         self.cfg.settings['pidfile'].value = pidfile
         if args.status:
             try:
