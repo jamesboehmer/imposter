@@ -1,7 +1,7 @@
 EC2 Metadata Service Imposter
 =============================
 
-This service was created to ease the usage AWS SDK tools with using
+This service was created to ease the usage of AWS SDK tools with using
 assumed roles in your development environment.
 
 Installation

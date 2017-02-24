@@ -13,6 +13,7 @@ from gunicorn import config
 from gunicorn.app.base import Application
 
 from imposter.routes import register_routes
+from imposter.helpers import get_assumed_role
 
 logging.config.fileConfig('{}/logging.ini'.format(os.path.dirname(os.path.realpath(__file__))))
 logger = logging.getLogger('imposter')
@@ -225,6 +226,21 @@ class FlaskApplication(Application):
             sys.exit(0)
         except OSError:
             pass
+
+        # Check for misconfigred AWS CLI
+        _tmpconfig = {}
+        _ = get_assumed_role(_tmpconfig, args.profile).credentials
+        shared_credentials = _tmpconfig['AWS_SHARED_CREDENTIALS']
+        for field in ['aws_access_key_id', 'aws_secret_access_key']:
+            if shared_credentials.get('default', field) or shared_credentials.get('profile default', field):
+                print(
+                    '''*******
+Your AWS CLI configuration has a "default" profile with an "{}" attribute.
+The AWS SDKs will attempt to use this before going to the EC2 Metadata service.
+Move your default credentials to a new section, and update the profiles which depend on it
+*******'''.format(
+                        field), file=sys.stderr)
+                sys.exit(1)
 
         # if 169.254.169.254 doesn't exist we should add it as an alias
         if self.cfg.address[0][0] == '169.254.169.254':
