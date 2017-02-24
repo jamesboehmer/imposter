@@ -30,18 +30,19 @@ class FlaskApplication(Application):
             app.config['AWS_CONFIG_FILE'] = opts.awsconfig
 
         # preload all of the profiles
-        _ = get_assumed_role(app.config, opts.profile).credentials
-        shared_credentials = app.config['AWS_SHARED_CREDENTIALS']
-        _ = get_assumed_role(app.config, app.config.get('AWS_PROFILE')).credentials
-        profiles = [profile.replace('profile ', '') for profile in shared_credentials.sections() if
-                    profile.startswith('profile ') and shared_credentials.get(profile, 'source_profile')]
+        if opts.profile:
+            _ = get_assumed_role(app.config, opts.profile).credentials
+            shared_credentials = app.config['AWS_SHARED_CREDENTIALS']
+            _ = get_assumed_role(app.config, app.config.get('AWS_PROFILE')).credentials
+            profiles = [profile.replace('profile ', '') for profile in shared_credentials.sections() if
+                        profile.startswith('profile ') and shared_credentials.get(profile, 'source_profile')]
 
-        for profile in profiles:
-            try:
-                logger.debug("Loading profile: {}".format(profile))
-                _ = get_assumed_role(app.config, profile).credentials
-            except Exception as e:
-                logger.error("Couldn't assume role {}: {}".format(profile, str(e)))
+            for profile in profiles:
+                try:
+                    logger.debug("Loading profile: {}".format(profile))
+                    _ = get_assumed_role(app.config, profile).credentials
+                except Exception as e:
+                    logger.error("Couldn't assume role {}: {}".format(profile, str(e)))
 
         return {}
 
@@ -226,12 +227,14 @@ class FlaskApplication(Application):
 
         if args.roles:
             try:
-                os.stat(pidfile)
                 # It must exist, so we know the host and port
                 url = 'http://{}:{}/roles'.format(self.cfg.address[0][0], self.cfg.address[0][1], args.profile)
                 r = requests.get(url)
                 print(str(r.content))
                 sys.exit(0)
+            except requests.ConnectionError:
+                print('Imposter service not running: {}'.format(url), file=sys.stderr)
+                sys.exit(1)
             except Exception as e:
                 print(str(e), file=sys.stderr)
                 sys.exit(1)
