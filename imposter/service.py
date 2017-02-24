@@ -76,6 +76,7 @@ class FlaskApplication(Application):
                 _group.add_argument(*_args, **kwargs)
                 _group.add_argument('--stop', action='store_true', help="Stop the imposter service")
                 _group.add_argument('--roles', action='store_true', help="List available roles")
+                _group.add_argument('--status', action='store_true', help="Imposter service status")
 
         class AWSConfigSettings(config.Setting):
             name = "awsconfig"
@@ -99,7 +100,17 @@ class FlaskApplication(Application):
 
             def add_option(self, _parser):
                 pass
-                # _parser.add_argument('--stop', action='store_true', help="Stop the imposter service")
+
+        class StatusSettings(config.Setting):
+            name = "status"
+            section = "Imposter service status"
+            cli = ["--status"]
+            meta = "STATUS"
+            validator = lambda *_: True
+            desc = section
+
+            def add_option(self, _parser):
+                pass
 
         class RolesSettings(config.Setting):
             name = "roles"
@@ -115,6 +126,7 @@ class FlaskApplication(Application):
         self.cfg.settings['profile'] = ProfileSettings()
         self.cfg.settings['awsconfig'] = AWSConfigSettings()
         self.cfg.settings['stop'] = StopSettings()
+        self.cfg.settings['status'] = StatusSettings()
         self.cfg.settings['roles'] = RolesSettings()
         self.cfg.settings['bind'].default = ['169.254.169.254:80']
         self.cfg.settings['bind'].value = self.cfg.settings['bind'].default
@@ -131,6 +143,17 @@ class FlaskApplication(Application):
         parser = self.cfg.parser()
 
         args = parser.parse_args()
+        if args.status:
+            try:
+                logger.debug("Reading from {}".format(pidfile))
+                url = 'http://{}:{}/status'.format(self.cfg.address[0][0], self.cfg.address[0][1], args.profile)
+                r = requests.get(url)
+                print(str(r.content))
+            except Exception as e:
+                print('Imposter service not reachable: {}'.format(url))
+                sys.exit(1)
+            sys.exit(0)
+
         if args.stop:
             try:
                 logger.debug("Reading from {}".format(pidfile))
@@ -149,7 +172,7 @@ class FlaskApplication(Application):
                         except KeyboardInterrupt:
                             pass
                     sys.exit(proc.returncode)
-            except IOError as ioe:
+            except IOError:
                 logger.error("Couldn't open pidfile: {}".format(pidfile))
             except Exception as e:
                 logger.error(str(e))

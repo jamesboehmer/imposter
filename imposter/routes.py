@@ -55,6 +55,10 @@ def register_routes(app):
         roles.sort()
         return jsonify(roles=roles)
 
+    @app.route('/status')
+    def status():
+        return Response(content_type='text/plain', response='OK', status=200)
+
     @app.route('/roles/<profile>', methods=['GET', 'POST'])
     def roles_profile(profile):
         assumed_role = get_assumed_role(app.config, profile)

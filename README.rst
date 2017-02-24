@@ -42,6 +42,11 @@ not, it will launch it. Switching roles is equivalent to running
 
 ``curl -XPOST http://169.254.169.254/roles/<profilename>``
 
+Checking service status
+~~~~~~~~~~~~~~~~~~~~~~~
+
+``imposter --status``
+
 Your AWS CLI config
 -------------------
 
