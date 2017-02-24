@@ -1,21 +1,21 @@
 import getpass
+import logging
+import netifaces
 import os
 import subprocess
 import sys
+from hashlib import md5
 
-import netifaces
 from flask import Flask
 from gunicorn import config
 from gunicorn.app.base import Application
-import logging
+
 from imposter.routes import register_routes
 
 logging.config.fileConfig('{}/logging.ini'.format(os.path.dirname(os.path.realpath(__file__))))
 logger = logging.getLogger('imposter')
 
-# logger = Logger()
 app = Flask(__name__)
-# app.config['DEBUG'] = True
 
 register_routes(app)
 
@@ -29,12 +29,14 @@ class FlaskApplication(Application):
 
     def load_config(self):
         # parse console args
+
         class ProfileSettings(config.Setting):
             name = "profile"
             # action = "append"
             section = "AWS CLI Profile"
             cli = ["--profile"]
             meta = "AWS_PROFILE"
+
             validator = config.validate_string
             desc = section
 
@@ -66,9 +68,11 @@ class FlaskApplication(Application):
                 if self.const is not None:
                     kwargs["const"] = self.const
 
-                kwargs['required'] = True
+                kwargs['required'] = False
 
-                _parser.add_argument(*_args, **kwargs)
+                _group = _parser.add_mutually_exclusive_group(required=True)
+                _group.add_argument(*_args, **kwargs)
+                _group.add_argument('--stop', action='store_true', help="Stop the imposter service")
 
         class AWSConfigSettings(config.Setting):
             name = "awsconfig"
@@ -82,14 +86,60 @@ class FlaskApplication(Application):
                 _parser.add_argument('--awsconfig', action='store', type=str, default=None, required=False,
                                      help='AWS CLI Config File Location')
 
+        class StopSettings(config.Setting):
+            name = "stop"
+            section = "Stop the imposter service"
+            cli = ["--stop"]
+            meta = "STOP"
+            validator = lambda *_: True
+            desc = section
+
+            def add_option(self, _parser):
+                pass
+                # _parser.add_argument('--stop', action='store_true', help="Stop the imposter service")
+
         self.cfg.settings['profile'] = ProfileSettings()
         self.cfg.settings['awsconfig'] = AWSConfigSettings()
+        self.cfg.settings['stop'] = StopSettings()
         self.cfg.settings['bind'].default = ['169.254.169.254:80']
         self.cfg.settings['bind'].value = self.cfg.settings['bind'].default
+
+        tmpdir = '/tmp'  # tempfile.gettempdir()
+        address = '{}:{}'.format(*self.cfg.address[0])
+        pidfile = '{}/imposter.{}'.format(tmpdir, md5(address).hexdigest())
+
+        logger.debug("pidfile: {}".format(pidfile))
+
+        self.cfg.settings['pidfile'].default = pidfile
+        self.cfg.settings['pidfile'].value = self.cfg.settings['pidfile'].default
 
         parser = self.cfg.parser()
 
         args = parser.parse_args()
+        if args.stop:
+            try:
+                logger.debug("Reading from {}".format(pidfile))
+                with open(pidfile, 'rb') as p:
+                    pid = p.read()
+                    logger.debug("piduid: {}".format(pid))
+                    thisuid = os.getuid()
+                    pidfile_stats = os.stat(pidfile)
+                    cmd = ['kill', pid]
+                    if thisuid != pidfile_stats.st_uid:
+                        cmd = ['sudo'] + cmd
+                    proc = subprocess.Popen(' '.join(cmd), shell=True)
+                    while proc.returncode is None:
+                        try:
+                            proc.wait()
+                        except KeyboardInterrupt:
+                            pass
+                    sys.exit(proc.returncode)
+            except IOError as ioe:
+                logger.error("Couldn't open pidfile: {}".format(pidfile))
+            except Exception as e:
+                logger.error(str(e))
+            finally:
+                sys.exit(0)
 
         # optional settings from apps
         cfg = self.init(parser, args, args.args)
@@ -132,11 +182,12 @@ class FlaskApplication(Application):
                 if proc.returncode != 0:
                     logger.error('Error calling {}'.format(' '.join(cmd)))
                     sys.exit(1)
+
         if self.cfg.address[0][1] < 1024 and os.getuid() != 0:
             # restart this program as root
             logger.info('Switching to root to run on a privileged port.')
             username = getpass.getuser()
-            cmd = ['sudo', 'PYTHONPATH=.', sys.executable] + sys.argv + ['--user', username]
+            cmd = ['sudo', sys.executable] + sys.argv + ['--user', username]
             proc = subprocess.Popen(' '.join(cmd), shell=True, cwd=os.getcwd())
             while proc.returncode is None:
                 try:
