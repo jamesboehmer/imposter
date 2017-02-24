@@ -75,6 +75,7 @@ class FlaskApplication(Application):
                 _group = _parser.add_mutually_exclusive_group(required=True)
                 _group.add_argument(*_args, **kwargs)
                 _group.add_argument('--stop', action='store_true', help="Stop the imposter service")
+                _group.add_argument('--roles', action='store_true', help="List available roles")
 
         class AWSConfigSettings(config.Setting):
             name = "awsconfig"
@@ -100,9 +101,21 @@ class FlaskApplication(Application):
                 pass
                 # _parser.add_argument('--stop', action='store_true', help="Stop the imposter service")
 
+        class RolesSettings(config.Setting):
+            name = "roles"
+            section = "List available roles"
+            cli = ["--roles"]
+            meta = "ROLES"
+            validator = lambda *_: True
+            desc = section
+
+            def add_option(self, _parser):
+                pass
+
         self.cfg.settings['profile'] = ProfileSettings()
         self.cfg.settings['awsconfig'] = AWSConfigSettings()
         self.cfg.settings['stop'] = StopSettings()
+        self.cfg.settings['roles'] = RolesSettings()
         self.cfg.settings['bind'].default = ['169.254.169.254:80']
         self.cfg.settings['bind'].value = self.cfg.settings['bind'].default
 
@@ -167,6 +180,29 @@ class FlaskApplication(Application):
                 continue
             self.cfg.set(k.lower(), v)
 
+        if args.roles:
+            try:
+                os.stat(pidfile)
+                # It must exist, so we know the host and port
+                url = 'http://{}:{}/roles'.format(self.cfg.address[0][0], self.cfg.address[0][1], args.profile)
+                r = requests.get(url)
+                print(str(r.content))
+                sys.exit(0)
+            except Exception as e:
+                print(str(e), file=sys.stderr)
+                sys.exit(1)
+
+        # Check if the pid exists first.  If so, try to request a role change
+        try:
+            os.stat(pidfile)
+            # It must exist, so we know the host and port
+            url = 'http://{}:{}/roles/{}'.format(self.cfg.address[0][0], self.cfg.address[0][1], args.profile)
+            r = requests.post(url)
+            print(str(r.content))
+            sys.exit(0)
+        except OSError:
+            pass
+
         # if 169.254.169.254 doesn't exist we should add it as an alias
         if self.cfg.address[0][0] == '169.254.169.254':
             privip = [a.get('addr') for a in netifaces.ifaddresses('lo0')[netifaces.AF_INET]]
@@ -184,17 +220,6 @@ class FlaskApplication(Application):
                 if proc.returncode != 0:
                     logger.error('Error calling {}'.format(' '.join(cmd)))
                     sys.exit(1)
-
-        # Check if the pid exists first.  If so, try to request a role change
-        try:
-            os.stat(pidfile)
-            # It must exist, so we know the host and port
-            url = 'http://{}:{}/roles/{}'.format(self.cfg.address[0][0], self.cfg.address[0][1], args.profile)
-            r = requests.post(url)
-            print(str(r.content))
-            sys.exit(0)
-        except OSError:
-            pass
 
         if self.cfg.address[0][1] < 1024 and os.getuid() != 0:
             # restart this program as root

@@ -14,6 +14,9 @@ If the service detects you do not have the private IP address 169.254.169.254, i
 ### Stopping the service
 `imposter --stop`
 
+### Listing roles
+`imposter --roles`
+
 ### Switching roles
 `imposter --profile <AWS CLI profile name>`
 

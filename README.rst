@@ -27,6 +27,11 @@ Stopping the service
 
 ``imposter --stop``
 
+Listing roles
+~~~~~~~~~~~~~
+
+``imposter --roles``
+
 Switching roles
 ~~~~~~~~~~~~~~~
 
