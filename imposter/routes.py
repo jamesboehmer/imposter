@@ -2,8 +2,9 @@ import json
 from collections import OrderedDict
 
 from flask import request, Response
+from flask.json import jsonify
 
-from imposter.helpers import get_assumed_role
+from imposter.helpers import get_assumed_role, set_default_profile
 
 
 def register_routes(app):
@@ -44,6 +45,33 @@ def register_routes(app):
         ]
         )
         return Response(content_type='text/plain', response=json.dumps(role), status=200)
+
+    @app.route('/roles')
+    def roles():
+        # get credentials at least once to ensure the config was loaded
+        _ = get_assumed_role(app.config, app.config.get('AWS_PROFILE')).credentials
+        roles = [profile.replace('profile ', '') for profile in app.config['AWS_SHARED_CREDENTIALS'].sections() if
+                 profile.startswith('profile ')]
+        roles.sort()
+        return jsonify(roles=roles)
+
+    @app.route('/roles/<profile>', methods=['GET', 'POST'])
+    def roles_profile(profile):
+        assumed_role = get_assumed_role(app.config, profile)
+        try:
+            user = assumed_role.user
+            if request.method == 'POST':
+                set_default_profile(app.config, profile)
+            _profile = OrderedDict([
+                ('Code', 'Success'),
+                ('LastUpdated', app.config.get('role_last_updated', {}).get(profile)),
+                ('InstanceProfileArn', user.arn),
+                ('InstanceProfileId', user.assume_role_id),
+            ])
+            return jsonify(**_profile)
+        except _:
+            return Response(content_type='text/plain', response='Role {} not found'.format(profile),
+                            status=404)
 
     @app.route('/<path>')
     def basepath(path):
