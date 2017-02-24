@@ -1,3 +1,4 @@
+from __future__ import print_function
 import getpass
 import logging
 import netifaces
@@ -5,6 +6,7 @@ import os
 import subprocess
 import sys
 from hashlib import md5
+import requests
 
 from flask import Flask
 from gunicorn import config
@@ -182,6 +184,17 @@ class FlaskApplication(Application):
                 if proc.returncode != 0:
                     logger.error('Error calling {}'.format(' '.join(cmd)))
                     sys.exit(1)
+
+        # Check if the pid exists first.  If so, try to request a role change
+        try:
+            os.stat(pidfile)
+            # It must exist, so we know the host and port
+            url = 'http://{}:{}/roles/{}'.format(self.cfg.address[0][0], self.cfg.address[0][1], args.profile)
+            r = requests.post(url)
+            print(str(r.content))
+            sys.exit(0)
+        except OSError:
+            pass
 
         if self.cfg.address[0][1] < 1024 and os.getuid() != 0:
             # restart this program as root

@@ -6,9 +6,20 @@ This service was created to ease the usage AWS SDK tools with using assumed role
 
 ## Usage
 
-`imposter --profile <AWS CLI profile name> [--bind [host]:port](169.254.169.254:80)`
+### Launching the service
+`imposter --profile <AWS CLI profile name> [--bind [host]:port](169.254.169.254:80) [-D] (daemonize)`
 
 If the service detects you do not have the private IP address 169.254.169.254, it will attempt to create it for you with sudo.  It will also ask for credentials so that you can run the service on privileged ports.
+
+### Stopping the service
+`imposter --stop`
+
+### Switching roles
+`imposter --profile <AWS CLI profile name>`
+
+If the service is running, it will attempt to switch the active role.  If not, it will launch it.  Switching roles is equivalent to running
+
+`curl -XPOST http://169.254.169.254/roles/<profilename>`
 
 ## Your AWS CLI config
 Your AWS CLI config should *not* have credentials in the `default` profile, otherwise the AWS SDK will look there for credentials before looking for the EC2 Metadata service.  Instead, have your config profiles point to a separate, non-default section with your credentials, e.g.

@@ -12,12 +12,30 @@ Installation
 Usage
 -----
 
-``imposter --profile <AWS CLI profile name> [--bind [host]:port](169.254.169.254:80)``
+Launching the service
+~~~~~~~~~~~~~~~~~~~~~
+
+``imposter --profile <AWS CLI profile name> [--bind [host]:port](169.254.169.254:80) [-D] (daemonize)``
 
 If the service detects you do not have the private IP address
 169.254.169.254, it will attempt to create it for you with sudo. It will
 also ask for credentials so that you can run the service on privileged
 ports.
+
+Stopping the service
+~~~~~~~~~~~~~~~~~~~~
+
+``imposter --stop``
+
+Switching roles
+~~~~~~~~~~~~~~~
+
+``imposter --profile <AWS CLI profile name>``
+
+If the service is running, it will attempt to switch the active role. If
+not, it will launch it. Switching roles is equivalent to running
+
+``curl -XPOST http://169.254.169.254/roles/<profilename>``
 
 Your AWS CLI config
 -------------------
