@@ -9,7 +9,7 @@ setup(name='imposter',
       packages=find_packages(),
       py_modules=['imposter'],
       include_package_data=True,
-      install_requires=['Flask==0.12', 'gunicorn==19.6.0', 'boto==2.45.0', 'requests==2.13.0'],
+      install_requires=['Flask==1.0', 'gunicorn==19.6.0', 'boto==2.45.0', 'requests==2.13.0'],
       entry_points={
           'console_scripts': [
               'imposter=imposter.service:main',
